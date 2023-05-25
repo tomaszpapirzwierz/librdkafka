@@ -203,14 +203,6 @@ static RD_UNUSED int rd_kafka_ApiVersion_key_cmp(const void *_a,
 }
 
 
-
-typedef enum {
-        RD_KAFKA_READ_UNCOMMITTED = 0,
-        RD_KAFKA_READ_COMMITTED   = 1
-} rd_kafka_isolation_level_t;
-
-
-
 #define RD_KAFKA_CTRL_MSG_ABORT  0
 #define RD_KAFKA_CTRL_MSG_COMMIT 1
 

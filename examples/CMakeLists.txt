@@ -26,6 +26,8 @@ target_link_libraries(openssl_engine_example_cpp PUBLIC rdkafka++)
 add_executable(misc misc.c ${win32_sources})
 target_link_libraries(misc PUBLIC rdkafka)
 
+add_executable(list_offsets list_offsets.c ${win32_sources})
+target_link_libraries(list_offsets PUBLIC rdkafka)
 
 # The targets below has Unix include dirs and do not compile on Windows.
 if(NOT WIN32)
@@ -37,4 +39,5 @@ if(NOT WIN32)
 
     add_executable(kafkatest_verifiable_client kafkatest_verifiable_client.cpp)
     target_link_libraries(kafkatest_verifiable_client PUBLIC rdkafka++)
+
 endif(NOT WIN32)

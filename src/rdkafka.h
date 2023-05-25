@@ -946,12 +946,12 @@ int32_t rd_kafka_topic_partition_get_leader_epoch(
  * @brief A growable list of Topic+Partitions.
  *
  */
+
 typedef struct rd_kafka_topic_partition_list_s {
         int cnt;                           /**< Current number of elements */
         int size;                          /**< Current allocated size */
         rd_kafka_topic_partition_t *elems; /**< Element array[] */
 } rd_kafka_topic_partition_list_t;
-
 
 /**
  * @brief Create a new list/vector Topic+Partition container.
@@ -970,6 +970,11 @@ typedef struct rd_kafka_topic_partition_list_s {
 RD_EXPORT
 rd_kafka_topic_partition_list_t *rd_kafka_topic_partition_list_new(int size);
 
+
+RD_EXPORT
+static void
+rd_kafka_topic_partition_destroy0(rd_kafka_topic_partition_t *rktpar,
+                                  int do_free);
 
 /**
  * @brief Free all resources used by the list and the list itself.
@@ -5366,6 +5371,8 @@ typedef int rd_kafka_event_type_t;
 #define RD_KAFKA_EVENT_LISTCONSUMERGROUPOFFSETS_RESULT 0x8000
 /** AlterConsumerGroupOffsets_result_t */
 #define RD_KAFKA_EVENT_ALTERCONSUMERGROUPOFFSETS_RESULT 0x10000
+/* ListOffsets_result_t */
+#define RD_KAFKA_EVENT_LISTOFFSETS_RESULT 0x20000
 
 
 /**
@@ -5630,6 +5637,8 @@ typedef rd_kafka_event_t rd_kafka_DeleteGroups_result_t;
 typedef rd_kafka_event_t rd_kafka_DeleteConsumerGroupOffsets_result_t;
 /*! AlterConsumerGroupOffsets result type */
 typedef rd_kafka_event_t rd_kafka_AlterConsumerGroupOffsets_result_t;
+/*! ListOffsets result type*/
+typedef rd_kafka_event_t rd_kafka_ListOffsets_result_t;
 /*! ListConsumerGroupOffsets result type */
 typedef rd_kafka_event_t rd_kafka_ListConsumerGroupOffsets_result_t;
 
@@ -5801,6 +5810,11 @@ rd_kafka_event_DeleteAcls_result(rd_kafka_event_t *rkev);
  */
 RD_EXPORT const rd_kafka_AlterConsumerGroupOffsets_result_t *
 rd_kafka_event_AlterConsumerGroupOffsets_result(rd_kafka_event_t *rkev);
+
+
+RD_EXPORT const rd_kafka_ListOffsets_result_t *
+rd_kafka_event_ListOffsets_result(rd_kafka_event_t *rkev);
+
 
 /**
  * @brief Get ListConsumerGroupOffsets result.
@@ -6720,6 +6734,8 @@ typedef enum rd_kafka_admin_op_t {
         RD_KAFKA_ADMIN_OP_LISTCONSUMERGROUPOFFSETS,
         /** AlterConsumerGroupOffsets */
         RD_KAFKA_ADMIN_OP_ALTERCONSUMERGROUPOFFSETS,
+        /** ListOffsets */
+        RD_KAFKA_ADMIN_OP_LISTOFFSETS,
         RD_KAFKA_ADMIN_OP__CNT /**< Number of ops defined */
 } rd_kafka_admin_op_t;
 
@@ -6736,6 +6752,11 @@ typedef enum rd_kafka_admin_op_t {
 
 
 typedef struct rd_kafka_AdminOptions_s rd_kafka_AdminOptions_t;
+
+typedef enum {
+        RD_KAFKA_READ_UNCOMMITTED = 0,
+        RD_KAFKA_READ_COMMITTED   = 1
+} rd_kafka_isolation_level_t;
 
 /**
  * @brief Create a new AdminOptions object.
@@ -6915,6 +6936,15 @@ rd_kafka_error_t *rd_kafka_AdminOptions_set_match_consumer_group_states(
     const rd_kafka_consumer_group_state_t *consumer_group_states,
     size_t consumer_group_states_cnt);
 
+/**
+ * Set Isolation Level to RD_KAFKA_READ_COMMITTED 
+ * or RD_KAFKA_READ_UNCOMMITTED
+*/
+RD_EXPORT
+rd_kafka_resp_err_t rd_kafka_AdminOptions_set_isolation_level(rd_kafka_AdminOptions_t *options,
+                                 rd_kafka_isolation_level_t value,
+                                 char *errstr,
+                                 size_t errstr_size);
 /**
  * @brief Set application opaque value that can be extracted from the
  *        result event using rd_kafka_event_opaque()
@@ -8154,6 +8184,14 @@ void rd_kafka_DeleteGroups(rd_kafka_t *rk,
                            rd_kafka_queue_t *rkqu);
 
 
+/**
+ * @brief ListOffsets for the given partitions in the partion_list_t
+*/
+RD_EXPORT 
+rd_kafka_resp_err_t rd_kafka_ListOffsets(rd_kafka_t *rk,
+                           rd_kafka_topic_partition_list_t *topic_partitions,
+                           const rd_kafka_AdminOptions_t *options,
+                           rd_kafka_queue_t *rkqu);
 
 /*
  * DeleteGroups result type and methods
@@ -9333,6 +9371,26 @@ rd_kafka_error_t *rd_kafka_commit_transaction(rd_kafka_t *rk, int timeout_ms);
  */
 RD_EXPORT
 rd_kafka_error_t *rd_kafka_abort_transaction(rd_kafka_t *rk, int timeout_ms);
+
+typedef enum rd_kafka_OffsetSpec_s {
+    RD_KAFKA_OFFSET_SPEC_MAX_TIMESTAMP = -3,
+    RD_KAFKA_OFFSET_SPEC_EARLIEST = -2,
+    RD_KAFKA_OFFSET_SPEC_LATEST = -1,
+} rd_kafka_OffsetSpec_t;
+
+typedef struct rd_kafka_ListOffsetResultInfo_s rd_kafka_ListOffsetResultInfo_t;
+
+RD_EXPORT
+const rd_kafka_topic_partition_t *rd_kafka_ListOffsetResultInfo_get_topic_partition(rd_kafka_ListOffsetResultInfo_t *result_info);
+
+RD_EXPORT
+int64_t rd_kafka_ListOffsetResultInfo_get_timestamp(rd_kafka_ListOffsetResultInfo_t *result_info);
+
+RD_EXPORT
+size_t rd_kafka_ListOffsets_result_get_count(rd_kafka_ListOffsets_result_t *result);
+
+RD_EXPORT
+const rd_kafka_ListOffsetResultInfo_t *rd_kafka_ListOffsets_result_get_element(rd_kafka_ListOffsets_result_t *result,size_t idx);
 
 
 /**@}*/

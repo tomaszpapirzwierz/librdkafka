@@ -110,6 +110,7 @@ static RD_UNUSED RD_INLINE int rd_kafka_event_setup(rd_kafka_t *rk,
         case RD_KAFKA_EVENT_ALTERCONSUMERGROUPOFFSETS_RESULT:
         case RD_KAFKA_EVENT_LISTCONSUMERGROUPOFFSETS_RESULT:
         case RD_KAFKA_EVENT_OAUTHBEARER_TOKEN_REFRESH:
+        case RD_KAFKA_EVENT_LISTOFFSETS_RESULT:
                 return 1;
 
         default:
