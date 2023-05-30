@@ -32,7 +32,7 @@
 /**
  * @brief Base64 encode binary input \p in, and write base64-encoded string
  *        and it's size to \p out
- * 
+ *
  * out->ptr must be freed after use.
  */
 void rd_base64_encode(const rd_chariov_t *in, rd_chariov_t *out) {
@@ -56,8 +56,8 @@ void rd_base64_encode(const rd_chariov_t *in, rd_chariov_t *out) {
  *
  * Returned string must be freed after use
  */
-char * rd_base64_encode_str(const rd_chariov_t *in) {
-    rd_chariov_t out;
-    rd_base64_encode(in, &out);
-    return out.ptr;
+char *rd_base64_encode_str(const rd_chariov_t *in) {
+        rd_chariov_t out;
+        rd_base64_encode(in, &out);
+        return out.ptr;
 }

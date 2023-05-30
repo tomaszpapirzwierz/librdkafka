@@ -30,4 +30,4 @@
 
 void rd_base64_encode(const rd_chariov_t *in, rd_chariov_t *out);
 
-char * rd_base64_encode_str(const rd_chariov_t *in);
+char *rd_base64_encode_str(const rd_chariov_t *in);
