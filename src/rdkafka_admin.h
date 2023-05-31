@@ -491,7 +491,7 @@ rd_kafka_ListOffsetResultInfo_t *rd_kafka_ListOffsetResultInfo_new(const char *t
 
 rd_kafka_ListOffsetResultInfo_t *rd_kafka_ListOffsetResultInfo_copy(const rd_kafka_ListOffsetResultInfo_t *element);
 
-void *rd_kafka_ListOffsetResultInfo_copy_opaque(const rd_kafka_ListOffsetResultInfo_t *src, void *opaque);
+void *rd_kafka_ListOffsetResultInfo_copy_opaque(const void *src, void *opaque);
 
 void rd_kafka_ListOffsetResultInfo_destroy_free(void *element);
 /**@}*/

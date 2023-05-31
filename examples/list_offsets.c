@@ -114,7 +114,6 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "%s\n", errstr);
                 return 1;
         }
-        rd_kafka_conf_set(conf, "debug", "all", NULL, 0);
 
         /*
          * Create an admin client, it can be created using any client type,
@@ -136,6 +135,13 @@ int main(int argc, char **argv) {
          * on the result queue that is passed to ListOffsets() */
         queue = rd_kafka_queue_new(rk);
         char *topicname = "newalphagammaone";
+        char *message_one = "Message-1";
+        char *message_two = "Message-2";
+        char *message_three = "Message-3";
+        int64_t basetimestamp = 10000000;
+        int64_t t1 = basetimestamp + 100;
+        int64_t t2 = basetimestamp + 400;
+        int64_t t3 = basetimestamp + 250;
         /* Signal handler for clean shutdown */
         signal(SIGINT, stop);
         rd_kafka_NewTopic_t *topic[1];
@@ -153,6 +159,60 @@ int main(int argc, char **argv) {
 
         rd_kafka_event_destroy(event);
 
+        rd_kafka_producev(
+                    /* Producer handle */
+                    rk,
+                    /* Topic name */
+                    RD_KAFKA_V_TOPIC(topicname),
+                    /* Make a copy of the payload. */
+                    RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+                    /* Message value and length */
+                    RD_KAFKA_V_VALUE(message_one, strlen(message_one)),
+
+                    RD_KAFKA_V_TIMESTAMP(t1),
+                    /* Per-Message opaque, provided in
+                     * delivery report callback as
+                     * msg_opaque. */
+                    RD_KAFKA_V_OPAQUE(NULL),
+                    /* End sentinel */
+                    RD_KAFKA_V_END);
+        rd_kafka_flush(rk,20*1000);
+        rd_kafka_producev(
+                    /* Producer handle */
+                    rk,
+                    /* Topic name */
+                    RD_KAFKA_V_TOPIC(topicname),
+                    /* Make a copy of the payload. */
+                    RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+                    /* Message value and length */
+                    RD_KAFKA_V_VALUE(message_two, strlen(message_two)),
+
+                    RD_KAFKA_V_TIMESTAMP(t2),
+                    /* Per-Message opaque, provided in
+                     * delivery report callback as
+                     * msg_opaque. */
+                    RD_KAFKA_V_OPAQUE(NULL),
+                    /* End sentinel */
+                    RD_KAFKA_V_END);
+        rd_kafka_flush(rk,20*1000);
+        rd_kafka_producev(
+                    /* Producer handle */
+                    rk,
+                    /* Topic name */
+                    RD_KAFKA_V_TOPIC(topicname),
+                    /* Make a copy of the payload. */
+                    RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+                    /* Message value and length */
+                    RD_KAFKA_V_VALUE(message_three, strlen(message_three)),
+
+                    RD_KAFKA_V_TIMESTAMP(t3),
+                    /* Per-Message opaque, provided in
+                     * delivery report callback as
+                     * msg_opaque. */
+                    RD_KAFKA_V_OPAQUE(NULL),
+                    /* End sentinel */
+                    RD_KAFKA_V_END);
+        rd_kafka_flush(rk,20*1000);
         /* Set timeout (optional) */
         options = rd_kafka_AdminOptions_new(rk, RD_KAFKA_ADMIN_OP_LISTOFFSETS);
         
@@ -170,13 +230,9 @@ int main(int argc, char **argv) {
         rd_kafka_topic_partition_t *topic_partition = rd_kafka_topic_partition_list_add(topic_partitions,topicname,0);
         /* Set OffsetSpec to EARLIEST */
         topic_partition->offset = RD_KAFKA_OFFSET_SPEC_EARLIEST;
-        
-        topic_partition = rd_kafka_topic_partition_list_add(topic_partitions,topicname,0);
-        topic_partition->offset = RD_KAFKA_OFFSET_SPEC_LATEST;
 
         /* Call ListOffsets */
-        api_error = rd_kafka_ListOffsets(rk, topic_partitions, options, queue);
-        rd_kafka_AdminOptions_destroy(options);
+        api_error = rd_kafka_ListOffsets(rk,rd_kafka_topic_partition_list_copy( topic_partitions), options, queue);
         if(api_error){
                 printf("Api Entry Point Error : %s\n",rd_kafka_err2str(api_error));
                 rd_kafka_queue_destroy(queue);
@@ -220,10 +276,134 @@ int main(int argc, char **argv) {
                 }
         }
 
+
         /* Destroy event object when we're done with it.
          * Note: rd_kafka_event_destroy() allows a NULL event. */
-        rd_kafka_event_destroy(event);
+        // rd_kafka_event_destroy(event);
 
+        topic_partition->offset = RD_KAFKA_OFFSET_SPEC_LATEST;
+
+        /* Call ListOffsets */
+        api_error = rd_kafka_ListOffsets(rk, rd_kafka_topic_partition_list_copy( topic_partitions), options, queue);
+        if(api_error){
+                printf("Api Entry Point Error : %s\n",rd_kafka_err2str(api_error));
+                rd_kafka_queue_destroy(queue);
+
+                /* Destroy the producer instance */
+                rd_kafka_destroy(rk);
+                return api_error;
+        }
+        /* Wait for results */
+        event = rd_kafka_queue_poll(queue, -1 /*indefinitely*/);
+
+        if (!event) {
+                /* User hit Ctrl-C */
+                fprintf(stderr, "%% Cancelled by user\n");
+
+        } else if (rd_kafka_event_error(event)) {
+                /* ListOffsets request failed */
+                fprintf(stderr, "%% ListOffsets failed: %s\n",
+                        rd_kafka_event_error_string(event));
+                exitcode = 2;
+
+        } else {
+                /* ListOffsets request succeeded, but individual
+                 * partitions may have errors. */
+                const rd_kafka_ListOffsets_result_t *result;
+                size_t i;
+
+                result  = rd_kafka_event_ListOffsets_result(event);
+                size_t result_cnt = rd_kafka_ListOffsets_result_get_count(result);
+                printf("ListOffsets results:\n");
+                for (i = 0; i < result_cnt; i++){
+                        rd_kafka_ListOffsetResultInfo_t *element = rd_kafka_ListOffsets_result_get_element(result,i);
+                        rd_kafka_topic_partition_t *topic_partition = rd_kafka_ListOffsetResultInfo_get_topic_partition(element);
+                        int64_t timestamp = rd_kafka_ListOffsetResultInfo_get_timestamp(element);
+                        printf("Topic : %s PartitionIndex : %d ErrorCode : %d Offset : %d Timestamp : %d\n",
+                                topic_partition->topic,
+                                topic_partition->partition,
+                                topic_partition->err,
+                                topic_partition->offset,
+                                timestamp);
+                }
+        }
+
+
+        /* Destroy event object when we're done with it.
+         * Note: rd_kafka_event_destroy() allows a NULL event. */
+        // rd_kafka_event_destroy(event);
+
+        topic_partition->offset = RD_KAFKA_OFFSET_SPEC_MAX_TIMESTAMP;
+
+        /* Call ListOffsets */
+        api_error = rd_kafka_ListOffsets(rk, rd_kafka_topic_partition_list_copy(topic_partitions), options, queue);
+        if(api_error){
+                printf("Api Entry Point Error : %s\n",rd_kafka_err2str(api_error));
+                rd_kafka_queue_destroy(queue);
+
+                /* Destroy the producer instance */
+                rd_kafka_destroy(rk);
+                return api_error;
+        }
+        /* Wait for results */
+        event = rd_kafka_queue_poll(queue, -1 /*indefinitely*/);
+
+        if (!event) {
+                /* User hit Ctrl-C */
+                fprintf(stderr, "%% Cancelled by user\n");
+
+        } else if (rd_kafka_event_error(event)) {
+                /* ListOffsets request failed */
+                fprintf(stderr, "%% ListOffsets failed: %s\n",
+                        rd_kafka_event_error_string(event));
+                exitcode = 2;
+
+        } else {
+                /* ListOffsets request succeeded, but individual
+                 * partitions may have errors. */
+                const rd_kafka_ListOffsets_result_t *result;
+                size_t i;
+
+                result  = rd_kafka_event_ListOffsets_result(event);
+                size_t result_cnt = rd_kafka_ListOffsets_result_get_count(result);
+                printf("ListOffsets results:\n");
+                for (i = 0; i < result_cnt; i++){
+                        rd_kafka_ListOffsetResultInfo_t *element = rd_kafka_ListOffsets_result_get_element(result,i);
+                        rd_kafka_topic_partition_t *topic_partition = rd_kafka_ListOffsetResultInfo_get_topic_partition(element);
+                        int64_t timestamp = rd_kafka_ListOffsetResultInfo_get_timestamp(element);
+                        printf("Topic : %s PartitionIndex : %d ErrorCode : %d Offset : %d Timestamp : %d\n",
+                                topic_partition->topic,
+                                topic_partition->partition,
+                                topic_partition->err,
+                                topic_partition->offset,
+                                timestamp);
+                }
+        }
+
+
+        /* Destroy event object when we're done with it.
+         * Note: rd_kafka_event_destroy() allows a NULL event. */
+        // rd_kafka_event_destroy(event);
+
+        rd_kafka_DeleteTopic_t *del_topics[1];
+        del_topics[0] = rd_kafka_DeleteTopic_new(topicname);
+        rd_kafka_DeleteTopics(rk,del_topics,1,NULL,queue);
+        event = rd_kafka_queue_poll(queue, -1 /*indefinitely*/);
+
+        if (!event) {
+                /* User hit Ctrl-C */
+                fprintf(stderr, "%% Cancelled by user\n");
+
+        } else if (rd_kafka_event_error(event)) {
+                /* ListOffsets request failed */
+                fprintf(stderr, "%% ListOffsets failed: %s\n",
+                        rd_kafka_event_error_string(event));
+                exitcode = 2;
+
+        }
+         /* Destroy event object when we're done with it.
+         * Note: rd_kafka_event_destroy() allows a NULL event. */
+        rd_kafka_event_destroy(event);
         signal(SIGINT, SIG_DFL);
 
         /* Destroy queue */

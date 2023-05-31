@@ -1550,7 +1550,7 @@ rd_kafka_AdminOptions_set_isolation_level(rd_kafka_AdminOptions_t *options,
                                  rd_kafka_isolation_level_t value,
                                  char *errstr,
                                  size_t errstr_size){
-        rd_kafka_confval_set_type(&options->isolation_level,
+        return rd_kafka_confval_set_type(&options->isolation_level,
                                         RD_KAFKA_CONFVAL_INT,&value,
                                         errstr,errstr_size);
 } 
@@ -3633,7 +3633,7 @@ rd_kafka_ListOffsetResultInfo_t *rd_kafka_ListOffsetResultInfo_copy(const rd_kaf
         return copiedelement;
 }
 
-void *rd_kafka_ListOffsetResultInfo_copy_opaque(const rd_kafka_ListOffsetResultInfo_t *element, void *opaque) {
+void *rd_kafka_ListOffsetResultInfo_copy_opaque(const void *element, void *opaque) {
         return rd_kafka_ListOffsetResultInfo_copy(element);
 }
 
@@ -3669,13 +3669,13 @@ void rd_kafka_ListOffsets_response_merge(rd_kafka_op_t *rko_fanout,
         }
 }
 
-size_t rd_kafka_ListOffsets_result_get_count(rd_kafka_ListOffsets_result_t *result){
+size_t rd_kafka_ListOffsets_result_get_count(const rd_kafka_ListOffsets_result_t *result){
         rd_kafka_op_type_t reqtype = result->rko_u.admin_result.reqtype & ~RD_KAFKA_OP_FLAGMASK;
         rd_assert(reqtype == RD_KAFKA_OP_LISTOFFSETS);
         return rd_list_cnt(&result->rko_u.admin_result.results);
 }
 
-const rd_kafka_ListOffsetResultInfo_t *rd_kafka_ListOffsets_result_get_element(rd_kafka_ListOffsets_result_t *result,size_t idx){
+const rd_kafka_ListOffsetResultInfo_t *rd_kafka_ListOffsets_result_get_element(const rd_kafka_ListOffsets_result_t *result,size_t idx){
         rd_kafka_op_type_t reqtype = result->rko_u.admin_result.reqtype & ~RD_KAFKA_OP_FLAGMASK;
         rd_assert(reqtype == RD_KAFKA_OP_LISTOFFSETS);
         return rd_list_elem(&result->rko_u.admin_result.results,idx);
@@ -3689,7 +3689,7 @@ rd_kafka_ListOffsetsResponse_parse0(rd_kafka_op_t *rko_req,
                                      size_t errstr_size){
         rd_list_t *result_list;
         rd_kafka_op_t *rko_result;
-        size_t i;
+        int i;
         result_list = rd_kafka_ListOffsetsResponseParser(reply,errstr,errstr_size);
         if(!result_list)
                 return reply->rkbuf_err;
@@ -3731,15 +3731,12 @@ rd_kafka_ListOffsets_leaders_queried_cb(rd_kafka_t *rk,
                                           rd_kafka_q_t *rkq,
                                           rd_kafka_op_t *reply){
         
-        rd_kafka_resp_err_t err = reply->rko_err;
         const rd_list_t *leaders = reply->rko_u.leaders.leaders; /* Possibly NULL (on err) */
         rd_kafka_topic_partition_list_t *partitions = reply->rko_u.leaders.partitions; /* Possibly NULL (on err) */
         rd_kafka_op_t *rko_fanout = reply->rko_u.leaders.opaque;
         rd_kafka_topic_partition_t *rktpar;
         const struct rd_kafka_partition_leader *leader;
-        rd_kafka_op_t *rko_result;      /* Incase all the partitions error for some reason */
         size_t i;
-        size_t itr;
         static const struct rd_kafka_admin_worker_cbs cbs = {
             rd_kafka_ListOffsetsRequest0,
             rd_kafka_ListOffsetsResponse_parse0,

@@ -971,10 +971,10 @@ RD_EXPORT
 rd_kafka_topic_partition_list_t *rd_kafka_topic_partition_list_new(int size);
 
 
-RD_EXPORT
-static void
-rd_kafka_topic_partition_destroy0(rd_kafka_topic_partition_t *rktpar,
-                                  int do_free);
+// RD_EXPORT
+// static void
+// rd_kafka_topic_partition_destroy0(rd_kafka_topic_partition_t *rktpar,
+//                                   int do_free);
 
 /**
  * @brief Free all resources used by the list and the list itself.
@@ -9387,10 +9387,10 @@ RD_EXPORT
 int64_t rd_kafka_ListOffsetResultInfo_get_timestamp(rd_kafka_ListOffsetResultInfo_t *result_info);
 
 RD_EXPORT
-size_t rd_kafka_ListOffsets_result_get_count(rd_kafka_ListOffsets_result_t *result);
+size_t rd_kafka_ListOffsets_result_get_count(const rd_kafka_ListOffsets_result_t *result);
 
 RD_EXPORT
-const rd_kafka_ListOffsetResultInfo_t *rd_kafka_ListOffsets_result_get_element(rd_kafka_ListOffsets_result_t *result,size_t idx);
+const rd_kafka_ListOffsetResultInfo_t *rd_kafka_ListOffsets_result_get_element(const rd_kafka_ListOffsets_result_t *result,size_t idx);
 
 
 /**@}*/
