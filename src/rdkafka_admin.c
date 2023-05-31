@@ -3637,10 +3637,10 @@ void *rd_kafka_ListOffsetResultInfo_copy_opaque(const void *element, void *opaqu
         return rd_kafka_ListOffsetResultInfo_copy(element);
 }
 
-const rd_kafka_topic_partition_t *rd_kafka_ListOffsetResultInfo_get_topic_partition(rd_kafka_ListOffsetResultInfo_t *result_info){
+const rd_kafka_topic_partition_t *rd_kafka_ListOffsetResultInfo_get_topic_partition(const rd_kafka_ListOffsetResultInfo_t *result_info){
     return result_info->topic_partition;
 }
-int64_t rd_kafka_ListOffsetResultInfo_get_timestamp(rd_kafka_ListOffsetResultInfo_t *result_info){
+int64_t rd_kafka_ListOffsetResultInfo_get_timestamp(const rd_kafka_ListOffsetResultInfo_t *result_info){
     return result_info->timestamp;
 }
 void rd_kafka_ListOffsetResultInfo_destroy(rd_kafka_ListOffsetResultInfo_t *element){

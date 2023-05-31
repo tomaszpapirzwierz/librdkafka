@@ -3652,6 +3652,180 @@ static void do_test_ListConsumerGroupOffsets(const char *what,
         SUB_TEST_PASS();
 }
 
+void do_test_list_offsets(rd_kafka_t *rk, rd_kafka_queue_t *queue){
+        char errstr[512];
+        char *topicname = "non-existent";
+        char *message = "Message";
+        rd_kafka_AdminOptions_t *options;
+        rd_kafka_event_t *event;
+        int64_t basetimestamp = 10000000;
+        int64_t t1 = basetimestamp + 100;
+        int64_t t2 = basetimestamp + 400;
+        int64_t t3 = basetimestamp + 250;
+        
+        rd_kafka_NewTopic_t *topic[1];
+        topic[0] = rd_kafka_NewTopic_new(topicname,1,1,errstr,sizeof(errstr));
+        rd_kafka_CreateTopics(rk,topic,1,NULL,queue);
+        rd_kafka_NewTopic_destroy_array(topic,1);
+        /* Wait for results */
+        event = rd_kafka_queue_poll(queue, -1 /*indefinitely*/);
+        rd_kafka_event_destroy(event);
+        
+        rd_kafka_producev(
+                    /* Producer handle */
+                    rk,
+                    /* Topic name */
+                    RD_KAFKA_V_TOPIC(topicname),
+                    /* Make a copy of the payload. */
+                    RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+                    /* Message value and length */
+                    RD_KAFKA_V_VALUE(message, strlen(message)),
+
+                    RD_KAFKA_V_TIMESTAMP(t1),
+                    /* Per-Message opaque, provided in
+                     * delivery report callback as
+                     * msg_opaque. */
+                    RD_KAFKA_V_OPAQUE(NULL),
+                    /* End sentinel */
+                    RD_KAFKA_V_END);
+        rd_kafka_producev(
+                    /* Producer handle */
+                    rk,
+                    /* Topic name */
+                    RD_KAFKA_V_TOPIC(topicname),
+                    /* Make a copy of the payload. */
+                    RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+                    /* Message value and length */
+                    RD_KAFKA_V_VALUE(message, strlen(message)),
+
+                    RD_KAFKA_V_TIMESTAMP(t2),
+                    /* Per-Message opaque, provided in
+                     * delivery report callback as
+                     * msg_opaque. */
+                    RD_KAFKA_V_OPAQUE(NULL),
+                    /* End sentinel */
+                    RD_KAFKA_V_END);
+        rd_kafka_producev(
+                    /* Producer handle */
+                    rk,
+                    /* Topic name */
+                    RD_KAFKA_V_TOPIC(topicname),
+                    /* Make a copy of the payload. */
+                    RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+                    /* Message value and length */
+                    RD_KAFKA_V_VALUE(message, strlen(message)),
+
+                    RD_KAFKA_V_TIMESTAMP(t3),
+                    /* Per-Message opaque, provided in
+                     * delivery report callback as
+                     * msg_opaque. */
+                    RD_KAFKA_V_OPAQUE(NULL),
+                    /* End sentinel */
+                    RD_KAFKA_V_END);
+        rd_kafka_flush(rk,20*1000);
+        /* Set timeout (optional) */
+        options = rd_kafka_AdminOptions_new(rk, RD_KAFKA_ADMIN_OP_LISTOFFSETS);
+        
+        if (rd_kafka_AdminOptions_set_request_timeout(options, 30 * 1000 /* 30s */, errstr, sizeof(errstr))
+                || rd_kafka_AdminOptions_set_isolation_level(options, RD_KAFKA_READ_COMMITTED, errstr, sizeof(errstr))) {
+                TEST_FAIL("Unable to set the options\n");
+        }
+
+        rd_kafka_topic_partition_list_t *topic_partitions;
+        topic_partitions = rd_kafka_topic_partition_list_new(1);
+        rd_kafka_topic_partition_t *topic_partition = rd_kafka_topic_partition_list_add(topic_partitions,topicname,0);
+        /* Set OffsetSpec to EARLIEST */
+        topic_partition->offset = RD_KAFKA_OFFSET_SPEC_EARLIEST;
+
+        /* Call ListOffsets */
+        if(rd_kafka_ListOffsets(rk,rd_kafka_topic_partition_list_copy(topic_partitions), options, queue))
+            TEST_FAIL("Unable to call ListOffsets\n");
+        
+        /* Wait for results */
+        event = rd_kafka_queue_poll(queue, -1 /*indefinitely*/);
+
+        if (!event  || rd_kafka_event_error(event)) {
+                TEST_FAIL("Event Failed\n");
+        } else {
+                const rd_kafka_ListOffsets_result_t *result;
+                size_t i;
+
+                result  = rd_kafka_event_ListOffsets_result(event);
+                size_t result_cnt = rd_kafka_ListOffsets_result_get_count(result);
+                for (i = 0; i < result_cnt; i++){
+                        const rd_kafka_ListOffsetResultInfo_t *element = rd_kafka_ListOffsets_result_get_element(result,i);
+                        const rd_kafka_topic_partition_t *topic_partition = rd_kafka_ListOffsetResultInfo_get_topic_partition(element);
+                        int64_t timestamp = rd_kafka_ListOffsetResultInfo_get_timestamp(element);
+                        TEST_ASSERT((topic_partition->err == 0) && (topic_partition->offset == 0),"Offset should be 0\n");
+                }
+        }
+
+        rd_kafka_event_destroy(event);
+        
+        topic_partition->offset = RD_KAFKA_OFFSET_SPEC_LATEST;
+
+        /* Call ListOffsets */
+        if(rd_kafka_ListOffsets(rk,rd_kafka_topic_partition_list_copy(topic_partitions), options, queue))
+            TEST_FAIL("Unable to call ListOffsets\n");
+        
+        /* Wait for results */
+        event = rd_kafka_queue_poll(queue, -1 /*indefinitely*/);
+
+        if (!event  || rd_kafka_event_error(event)) {
+                TEST_FAIL("Event Failed\n");
+        } else {
+                const rd_kafka_ListOffsets_result_t *result;
+                size_t i;
+
+                result  = rd_kafka_event_ListOffsets_result(event);
+                size_t result_cnt = rd_kafka_ListOffsets_result_get_count(result);
+                for (i = 0; i < result_cnt; i++){
+                        const rd_kafka_ListOffsetResultInfo_t *element = rd_kafka_ListOffsets_result_get_element(result,i);
+                        const rd_kafka_topic_partition_t *topic_partition = rd_kafka_ListOffsetResultInfo_get_topic_partition(element);
+                        int64_t timestamp = rd_kafka_ListOffsetResultInfo_get_timestamp(element);
+                        TEST_ASSERT((topic_partition->err == 0) && (topic_partition->offset == 3),"Offset should be 3\n");
+                }
+        }
+        rd_kafka_event_destroy(event);
+        
+        topic_partition->offset = RD_KAFKA_OFFSET_SPEC_MAX_TIMESTAMP;
+
+        /* Call ListOffsets */
+        if(rd_kafka_ListOffsets(rk,rd_kafka_topic_partition_list_copy(topic_partitions), options, queue))
+            TEST_FAIL("Unable to call ListOffsets\n");
+        
+        /* Wait for results */
+        event = rd_kafka_queue_poll(queue, -1 /*indefinitely*/);
+
+        if (!event  || rd_kafka_event_error(event)) {
+                TEST_FAIL("Event Failed\n");
+        } else {
+                const rd_kafka_ListOffsets_result_t *result;
+                size_t i;
+
+                result  = rd_kafka_event_ListOffsets_result(event);
+                size_t result_cnt = rd_kafka_ListOffsets_result_get_count(result);
+                for (i = 0; i < result_cnt; i++){
+                        const rd_kafka_ListOffsetResultInfo_t *element = rd_kafka_ListOffsets_result_get_element(result,i);
+                        const rd_kafka_topic_partition_t *topic_partition = rd_kafka_ListOffsetResultInfo_get_topic_partition(element);
+                        int64_t timestamp = rd_kafka_ListOffsetResultInfo_get_timestamp(element);
+                        TEST_ASSERT((topic_partition->err == 0) && (topic_partition->offset == 1),"Offset should be 1\n");
+                }
+        }
+        rd_kafka_event_destroy(event);
+        rd_kafka_AdminOptions_destroy(options);
+        rd_kafka_topic_partition_list_destroy(topic_partitions);
+
+        rd_kafka_DeleteTopic_t *del_topics[1];
+        del_topics[0] = rd_kafka_DeleteTopic_new(topicname);
+        rd_kafka_DeleteTopics(rk,del_topics,1,NULL,queue);
+        rd_kafka_DeleteTopic_destroy_array(del_topics,1);
+        /* Wait for results */
+        event = rd_kafka_queue_poll(queue, -1 /*indefinitely*/);
+        rd_kafka_event_destroy(event);
+        
+}
+
 static void do_test_apis(rd_kafka_type_t cltype) {
         rd_kafka_t *rk;
         rd_kafka_conf_t *conf;
@@ -3774,6 +3948,7 @@ static void do_test_apis(rd_kafka_type_t cltype) {
                     rd_true /*with subscribing consumer*/, rd_true);
         }
 
+        do_test_list_offsets(rk,mainq);
         rd_kafka_queue_destroy(mainq);
 
         rd_kafka_destroy(rk);

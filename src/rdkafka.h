@@ -9381,10 +9381,10 @@ typedef enum rd_kafka_OffsetSpec_s {
 typedef struct rd_kafka_ListOffsetResultInfo_s rd_kafka_ListOffsetResultInfo_t;
 
 RD_EXPORT
-const rd_kafka_topic_partition_t *rd_kafka_ListOffsetResultInfo_get_topic_partition(rd_kafka_ListOffsetResultInfo_t *result_info);
+const rd_kafka_topic_partition_t *rd_kafka_ListOffsetResultInfo_get_topic_partition(const rd_kafka_ListOffsetResultInfo_t *result_info);
 
 RD_EXPORT
-int64_t rd_kafka_ListOffsetResultInfo_get_timestamp(rd_kafka_ListOffsetResultInfo_t *result_info);
+int64_t rd_kafka_ListOffsetResultInfo_get_timestamp(const rd_kafka_ListOffsetResultInfo_t *result_info);
 
 RD_EXPORT
 size_t rd_kafka_ListOffsets_result_get_count(const rd_kafka_ListOffsets_result_t *result);
