@@ -3652,20 +3652,28 @@ void rd_kafka_ListOffsetResultInfo_destroy_free(void *element){
 }
 void rd_kafka_ListOffsets_response_merge(rd_kafka_op_t *rko_fanout,
                                       const rd_kafka_op_t *rko_partial){
-        size_t partition_cnt;               
-        size_t i;
+        size_t partition_cnt;    
+        size_t total_partitions;  
+        size_t cutoff = 0;         
+        size_t i,j;
         rd_assert(rko_partial->rko_evtype ==
                   RD_KAFKA_EVENT_LISTOFFSETS_RESULT);
         
-        if(rko_partial->rko_err){
-                printf("Partial Errorred! : %s\n\n",rd_kafka_err2str(rko_partial->rko_err));
-        }
-
         partition_cnt = rd_list_cnt(&rko_partial->rko_u.admin_result.results);
+        total_partitions = rd_list_cnt(&rko_fanout->rko_u.admin_request.fanout.results);
 
         for(i=0;i<partition_cnt;i++){
                 rd_kafka_ListOffsetResultInfo_t *element = rd_list_elem(&rko_partial->rko_u.admin_result.results,i);
-                rd_list_add(&rko_fanout->rko_u.admin_request.fanout.results,rd_kafka_ListOffsetResultInfo_copy(element));
+                for(j=cutoff;j<total_partitions;j++){
+                        rd_kafka_ListOffsetResultInfo_t *result_element = rd_list_elem(&rko_fanout->rko_u.admin_request.fanout.results,j);
+                        if((result_element->topic_partition->partition == element->topic_partition->partition) && (strcasecmp(element->topic_partition->topic,result_element->topic_partition->topic)==0)){
+                                cutoff = j+1;
+                                result_element->timestamp = element->timestamp;
+                                result_element->topic_partition->err = element->topic_partition->err;
+                                result_element->topic_partition->offset = element->topic_partition->offset;
+                                break;
+                        }
+                }
         }
 }
 
@@ -3736,7 +3744,7 @@ rd_kafka_ListOffsets_leaders_queried_cb(rd_kafka_t *rk,
         rd_kafka_op_t *rko_fanout = reply->rko_u.leaders.opaque;
         rd_kafka_topic_partition_t *rktpar;
         const struct rd_kafka_partition_leader *leader;
-        size_t i;
+        size_t i,cutoff=0;
         static const struct rd_kafka_admin_worker_cbs cbs = {
             rd_kafka_ListOffsetsRequest0,
             rd_kafka_ListOffsetsResponse_parse0,
@@ -3749,14 +3757,26 @@ rd_kafka_ListOffsets_leaders_queried_cb(rd_kafka_t *rk,
         size_t partition_cnt = topic_partitions->cnt;
         rd_list_init(&rko_fanout->rko_u.admin_request.fanout.results,partition_cnt,rd_kafka_ListOffsetResultInfo_destroy_free);
 
+        // first make the result as 
+        for(i=0;i<partition_cnt;i++){
+                rd_kafka_topic_partition_t *topic_partition = &topic_partitions->elems[i];
+                rd_kafka_ListOffsetResultInfo_t *result_element = rd_kafka_ListOffsetResultInfo_new(topic_partition->topic,topic_partition->partition);
+                rd_list_add(&rko_fanout->rko_u.admin_request.fanout.results,result_element);
+        }
         RD_KAFKA_TPLIST_FOREACH(rktpar, partitions) {
                 if (!rktpar->err)
                         continue;
-                rd_kafka_ListOffsetResultInfo_t *result_element = rd_kafka_ListOffsetResultInfo_new(rktpar->topic,rktpar->partition);
+                rd_kafka_ListOffsetResultInfo_t *result_element;
+                for(i=cutoff;i<partition_cnt;i++){
+                        result_element = rd_list_elem(&rko_fanout->rko_u.admin_request.fanout.results,i);
+                        if(result_element->topic_partition->partition == rktpar->partition && strcasecmp(result_element->topic_partition->topic,rktpar->topic)==0){
+                                cutoff = i+1;
+                                break;
+                        }
+                }
                 result_element->topic_partition->err = rktpar->err;
                 result_element->topic_partition->offset = -1;
                 result_element->timestamp = -2;
-                rd_list_add(&rko_fanout->rko_u.admin_request.fanout.results,result_element);
         }
         
         if(!leaders){

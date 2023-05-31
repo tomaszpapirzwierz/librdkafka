@@ -215,69 +215,14 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "%% Failed to set isolation level: %s\n", errstr);
                 return 1;
         }
-        topic_partitions = rd_kafka_topic_partition_list_new(1);
+        topic_partitions = rd_kafka_topic_partition_list_new(2);
         rd_kafka_topic_partition_t *topic_partition = rd_kafka_topic_partition_list_add(topic_partitions,topicname,0);
-        /* Set OffsetSpec to EARLIEST */
         topic_partition->offset = RD_KAFKA_OFFSET_SPEC_EARLIEST;
-        
+
 
         /* Call ListOffsets */
-        api_error = rd_kafka_ListOffsets(rk,rd_kafka_topic_partition_list_copy(topic_partitions), options, queue);
-        if(api_error){
-                printf("Api Entry Point Error : %s\n",rd_kafka_err2str(api_error));
-                rd_kafka_queue_destroy(queue);
-
-                /* Destroy the producer instance */
-                rd_kafka_destroy(rk);
-                return api_error;
-        }
-        
-        /* Wait for results */
-        event = rd_kafka_queue_poll(queue, -1 /*indefinitely*/);
-
-        if (!event) {
-                /* User hit Ctrl-C */
-                fprintf(stderr, "%% Cancelled by user\n");
-
-        } else if (rd_kafka_event_error(event)) {
-                /* ListOffsets request failed */
-                fprintf(stderr, "%% ListOffsets failed: %s\n",
-                        rd_kafka_event_error_string(event));
-                exitcode = 2;
-
-        } else {
-                /* ListOffsets request succeeded, but individual
-                 * partitions may have errors. */
-                const rd_kafka_ListOffsets_result_t *result;
-                size_t i;
-                
-                result  = rd_kafka_event_ListOffsets_result(event);
-                size_t result_cnt = rd_kafka_ListOffsets_result_get_count(result);
-                printf("ListOffsets results:\n");
-                for (i = 0; i < result_cnt; i++){
-                        const rd_kafka_ListOffsetResultInfo_t *element = rd_kafka_ListOffsets_result_get_element(result,i);
-                        const rd_kafka_topic_partition_t *topic_partition = rd_kafka_ListOffsetResultInfo_get_topic_partition(element);
-                        int64_t timestamp = rd_kafka_ListOffsetResultInfo_get_timestamp(element);
-                        printf("Topic : %s PartitionIndex : %d ErrorCode : %d Offset : %lld Timestamp : %lld\n",
-                                topic_partition->topic,
-                                topic_partition->partition,
-                                topic_partition->err,
-                                topic_partition->offset,
-                                timestamp);
-                }
-        }
-         /* Destroy event object when we're done with it.
-         * Note: rd_kafka_event_destroy() allows a NULL event. */
-        rd_kafka_event_destroy(event);
-        
-        /* Destroy event object when we're done with it.
-         * Note: rd_kafka_event_destroy() allows a NULL event. */
-        // rd_kafka_event_destroy(event);
-
-        topic_partition->offset = RD_KAFKA_OFFSET_SPEC_LATEST;
-
-        /* Call ListOffsets */
-        api_error = rd_kafka_ListOffsets(rk, rd_kafka_topic_partition_list_copy( topic_partitions), options, queue);
+        api_error = rd_kafka_ListOffsets(rk, topic_partitions, options, queue);
+        rd_kafka_AdminOptions_destroy(options);
         if(api_error){
                 printf("Api Entry Point Error : %s\n",rd_kafka_err2str(api_error));
                 rd_kafka_queue_destroy(queue);
@@ -324,59 +269,6 @@ int main(int argc, char **argv) {
          /* Destroy event object when we're done with it.
          * Note: rd_kafka_event_destroy() allows a NULL event. */
         rd_kafka_event_destroy(event);
-        
-        topic_partition->offset = RD_KAFKA_OFFSET_SPEC_MAX_TIMESTAMP;
-
-        /* Call ListOffsets */
-        api_error = rd_kafka_ListOffsets(rk, rd_kafka_topic_partition_list_copy(topic_partitions), options, queue);
-        if(api_error){
-                printf("Api Entry Point Error : %s\n",rd_kafka_err2str(api_error));
-                rd_kafka_queue_destroy(queue);
-
-                /* Destroy the producer instance */
-                rd_kafka_destroy(rk);
-                return api_error;
-        }
-        /* Wait for results */
-        event = rd_kafka_queue_poll(queue, -1 /*indefinitely*/);
-
-        if (!event) {
-                /* User hit Ctrl-C */
-                fprintf(stderr, "%% Cancelled by user\n");
-
-        } else if (rd_kafka_event_error(event)) {
-                /* ListOffsets request failed */
-                fprintf(stderr, "%% ListOffsets failed: %s\n",
-                        rd_kafka_event_error_string(event));
-                exitcode = 2;
-
-        } else {
-                /* ListOffsets request succeeded, but individual
-                 * partitions may have errors. */
-                const rd_kafka_ListOffsets_result_t *result;
-                size_t i;
-
-                result  = rd_kafka_event_ListOffsets_result(event);
-                size_t result_cnt = rd_kafka_ListOffsets_result_get_count(result);
-                printf("ListOffsets results:\n");
-                for (i = 0; i < result_cnt; i++){
-                        const rd_kafka_ListOffsetResultInfo_t *element = rd_kafka_ListOffsets_result_get_element(result,i);
-                        const rd_kafka_topic_partition_t *topic_partition = rd_kafka_ListOffsetResultInfo_get_topic_partition(element);
-                        int64_t timestamp = rd_kafka_ListOffsetResultInfo_get_timestamp(element);
-                        printf("Topic : %s PartitionIndex : %d ErrorCode : %d Offset : %lld Timestamp : %lld\n",
-                                topic_partition->topic,
-                                topic_partition->partition,
-                                topic_partition->err,
-                                topic_partition->offset,
-                                timestamp);
-                }
-        }
-
-         /* Destroy event object when we're done with it.
-         * Note: rd_kafka_event_destroy() allows a NULL event. */
-        rd_kafka_event_destroy(event);
-        
-
         rd_kafka_DeleteTopic_t *del_topics[1];
         del_topics[0] = rd_kafka_DeleteTopic_new(topicname);
         rd_kafka_DeleteTopics(rk,del_topics,1,NULL,queue);
@@ -385,8 +277,7 @@ int main(int argc, char **argv) {
         /* Wait for results */
         event = rd_kafka_queue_poll(queue, -1 /*indefinitely*/);
         rd_kafka_event_destroy(event);
-        signal(SIGINT, SIG_DFL);
-
+        
         /* Destroy queue */
         rd_kafka_queue_destroy(queue);
 
