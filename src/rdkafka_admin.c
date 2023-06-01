@@ -4021,6 +4021,20 @@ rd_kafka_resp_err_t rd_kafka_ListOffsets(rd_kafka_t *rk,
                 }
                 rd_list_destroy(topic_partition_list);
         }
+        for(i=0;i<topic_partitions->cnt;i++){
+                rd_kafka_topic_partition_t *partition = &topic_partitions->elems[i];
+                if(partition->offset < 0){
+                        switch (partition->offset){
+                                case RD_KAFKA_OFFSET_SPEC_EARLIEST:
+                                case RD_KAFKA_OFFSET_SPEC_LATEST:
+                                case RD_KAFKA_OFFSET_SPEC_MAX_TIMESTAMP:
+                                        break;
+                                default:
+                                        return RD_KAFKA_RESP_ERR__INVALID_ARG;
+                        }
+
+                }
+        }
         static const struct rd_kafka_admin_fanout_worker_cbs fanout_cbs = {
             rd_kafka_ListOffsets_response_merge,
             rd_kafka_ListOffsetResultInfo_copy_opaque,

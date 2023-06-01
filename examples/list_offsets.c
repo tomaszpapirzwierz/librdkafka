@@ -216,9 +216,12 @@ int main(int argc, char **argv) {
                 return 1;
         }
         topic_partitions = rd_kafka_topic_partition_list_new(2);
-        rd_kafka_topic_partition_t *topic_partition = rd_kafka_topic_partition_list_add(topic_partitions,topicname,0);
+        rd_kafka_topic_partition_t *topic_partition = rd_kafka_topic_partition_list_add(topic_partitions,topicname,-1);
         topic_partition->offset = RD_KAFKA_OFFSET_SPEC_EARLIEST;
 
+
+        topic_partition = rd_kafka_topic_partition_list_add(topic_partitions,topicname,0);
+        topic_partition->offset = RD_KAFKA_OFFSET_SPEC_LATEST;
 
         /* Call ListOffsets */
         api_error = rd_kafka_ListOffsets(rk, topic_partitions, options, queue);
