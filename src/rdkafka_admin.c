@@ -3724,8 +3724,10 @@ rd_kafka_resp_err_t rd_kafka_ListOffsetsRequest0(rd_kafka_broker_t *rkb,
         rd_kafka_topic_partition_list_t *topic_partitions;
         rd_kafka_buf_t *rkbuf;
         topic_partitions = rd_list_elem(offsets,0);
-        
-        rkbuf = rd_kafka_ListOffsetsRequestWriter(rkb,topic_partitions,options->isolation_level.u.INT.v,replyq,errstr,errstr_size);
+        rd_kafka_isolation_level_t isolation_level = RD_KAFKA_READ_UNCOMMITTED;
+        if(options && options->isolation_level.u.INT.v)
+                isolation_level = options->isolation_level.u.INT.v;
+        rkbuf = rd_kafka_ListOffsetsRequestWriter(rkb,topic_partitions,isolation_level,replyq,errstr,errstr_size);
         if(rkbuf)
                 rd_kafka_broker_buf_enq_replyq(rkb, rkbuf, replyq, resp_cb, opaque);
         else

@@ -210,19 +210,10 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "%% Failed to set timeout: %s\n", errstr);
                 return 1;
         }
-
-        if(rd_kafka_AdminOptions_set_isolation_level(options, RD_KAFKA_READ_COMMITTED, errstr, sizeof(errstr))){
-                fprintf(stderr, "%% Failed to set isolation level: %s\n", errstr);
-                return 1;
-        }
+        
         topic_partitions = rd_kafka_topic_partition_list_new(2);
-        rd_kafka_topic_partition_t *topic_partition = rd_kafka_topic_partition_list_add(topic_partitions,topicname,-1);
-        topic_partition->offset = RD_KAFKA_OFFSET_SPEC_EARLIEST;
-
-
-        topic_partition = rd_kafka_topic_partition_list_add(topic_partitions,topicname,0);
+        rd_kafka_topic_partition_t *topic_partition = rd_kafka_topic_partition_list_add(topic_partitions,topicname,0);
         topic_partition->offset = RD_KAFKA_OFFSET_SPEC_LATEST;
-
         /* Call ListOffsets */
         api_error = rd_kafka_ListOffsets(rk, topic_partitions, options, queue);
         rd_kafka_AdminOptions_destroy(options);
