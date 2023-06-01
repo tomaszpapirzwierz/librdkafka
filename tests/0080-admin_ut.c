@@ -2403,6 +2403,23 @@ static rd_kafka_t *create_admin_client(rd_kafka_type_t cltype) {
         return rk;
 }
 
+static void do_test_ListOffsets(rd_kafka_t *rk,rd_kafka_queue_t *queue){
+        char *topicname = "non-existent";
+        rd_kafka_resp_err_t api_error;
+        rd_kafka_topic_partition_list_t *topic_partitions = rd_kafka_topic_partition_list_new(2);
+        rd_kafka_topic_partition_t *topic_partition = rd_kafka_topic_partition_list_add(topic_partitions,topicname,0);
+        topic_partition->offset = -4;
+        api_error = rd_kafka_ListOffsets(rk,topic_partitions,NULL,queue);
+        TEST_ASSERT(api_error == RD_KAFKA_RESP_ERR__INVALID_ARG,"Error should be RD_KAFKA_RESP_ERR__INVALID_ARG\n");
+        
+        topic_partition->offset = RD_KAFKA_OFFSET_SPEC_EARLIEST;
+
+        topic_partition = rd_kafka_topic_partition_list_add(topic_partitions,topicname,0);
+        topic_partition->offset = RD_KAFKA_OFFSET_SPEC_LATEST;
+        api_error = rd_kafka_ListOffsets(rk,topic_partitions,NULL,queue);
+        TEST_ASSERT(api_error == RD_KAFKA_RESP_ERR_DUPLICATE_RESOURCE,"Error should be RD_KAFKA_RESP_ERR_DUPLICATE_RESOURCE\n");
+
+}
 
 static void do_test_apis(rd_kafka_type_t cltype) {
         rd_kafka_t *rk;
@@ -2498,7 +2515,7 @@ static void do_test_apis(rd_kafka_type_t cltype) {
         do_test_mix(rk, mainq);
 
         do_test_configs(rk, mainq);
-
+        do_test_ListOffsets(rk,mainq);
         rd_kafka_queue_destroy(backgroundq);
         rd_kafka_queue_destroy(mainq);
 
