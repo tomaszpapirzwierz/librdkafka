@@ -12,7 +12,7 @@ librdkafka v2.2.0 is a feature release:
    (#4184, #4291, #4252).
  * Fix several bugs with sticky assignor in case of partition ownership
    changing between members of the consumer group (#4252).
-
+ * [KIP-235](https://cwiki.apache.org/confluence/display/KAFKA/KIP-235%3A+Add+DNS+alias+support+for+secured+connection): Add DNS alias support for secured connection (#4292).
 
 ## Fixes
 
