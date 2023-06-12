@@ -746,11 +746,6 @@ rd_kafka_parse_Metadata(rd_kafka_broker_t *rkb,
                 if (compute_racks)
                         rd_kafka_populate_metadata_topic_racks(&tbuf, i, mdi);
 
-                /* Update topic state based on the topic metadata */
-                rd_kafka_parse_Metadata_update_topic(rkb, &md->topics[i],
-                                                     &mdi->topics[i]);
-
-
                 if (requested_topics) {
                         rd_list_free_cb(missing_topics,
                                         rd_list_remove_cmp(missing_topics,
@@ -803,6 +798,12 @@ rd_kafka_parse_Metadata(rd_kafka_broker_t *rkb,
                            md->brokers[i].port, md->brokers[i].id);
                 rd_kafka_broker_update(rkb->rkb_rk, rkb->rkb_proto,
                                        &md->brokers[i], NULL);
+        }
+
+        for (i = 0; i < md->topic_cnt; i++) {
+                /* Update topic state based on the topic metadata */
+                rd_kafka_parse_Metadata_update_topic(rkb, &md->topics[i],
+                                                     &mdi->topics[i]);
         }
 
         /* Requested topics not seen in metadata? Propogate to topic code. */
